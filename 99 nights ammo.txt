@@ -1,0 +1,66 @@
+local Players = game:GetService("Players")
+local StarterGui = game:GetService("StarterGui")
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local rootPart = character:WaitForChild("HumanoidRootPart")
+
+-- Create GUI
+local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+local frame = Instance.new("Frame", screenGui)
+frame.Size = UDim2.new(0, 120, 0, 80)
+frame.Position = UDim2.new(0.5, -60, 0.1, 0)
+frame.BackgroundColor3 = Color3.new(0, 0, 0)
+frame.BorderColor3 = Color3.new(255, 0, 0)
+
+local titleLabel = Instance.new("TextLabel", frame)
+titleLabel.Size = UDim2.new(1, 0, 0, 20)
+titleLabel.BackgroundColor3 = Color3.new(255, 0, 0)
+titleLabel.TextColor3 = Color3.new(1, 1, 1)
+titleLabel.Text = "AMMO BRINGER"
+titleLabel.Font = Enum.Font.Arcade
+titleLabel.TextSize = 12
+
+local bringButton = Instance.new("TextButton", frame)
+bringButton.Size = UDim2.new(0, 100, 0, 30)
+bringButton.Position = UDim2.new(0, 10, 0, 30)
+bringButton.BackgroundColor3 = Color3.new(1, 0, 0)
+bringButton.TextColor3 = Color3.new(1, 1, 1)
+bringButton.Text = "BRING AMMO"
+bringButton.Font = Enum.Font.Arcade
+bringButton.TextSize = 12
+
+-- Function to find the campfire
+local function findCampfire()
+    for _, obj in pairs(workspace:GetChildren()) do
+        if obj.Name:lower():find("campfire") and obj:IsA("BasePart") then
+            return obj
+        end
+    end
+    return nil
+end
+
+-- Function to teleport ammo to campfire
+local function bringAmmoToCamp()
+    local campfire = findCampfire()
+    if not campfire then
+        StarterGui:SetCore("ChatMakeSystemMessage", {Text = "Campfire not found!"; Color = Color3.new(1, 1, 0)})
+        return
+    end
+    local count = 0
+    for _, obj in pairs(workspace:GetChildren()) do
+        if obj.Name:lower():find("ammo") and obj:IsA("BasePart") then
+            obj.CFrame = campfire.CFrame + Vector3.new(math.random(-5, 5), 2, math.random(-5, 5))
+            count = count + 1
+        end
+    end
+    StarterGui:SetCore("ChatMakeSystemMessage", {Text = "Brought " .. count .. " ammo items to camp!"; Color = Color3.new(0, 1, 0)})
+end
+
+-- Button activation
+bringButton.Activated:Connect(bringAmmoToCamp)
+
+-- Handle respawn
+player.CharacterAdded:Connect(function(newCharacter)
+    character = newCharacter
+    rootPart = character:WaitForChild("HumanoidRootPart")
+end)
