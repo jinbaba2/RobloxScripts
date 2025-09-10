@@ -1,0 +1,250 @@
+-- c00lgui Enhanced Kill Aura/Command Script (Client-Side, Improved for 2025)
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local StarterGui = game:GetService("StarterGui")
+local Debris = game:GetService("Debris")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local rootPart = character:WaitForChild("HumanoidRootPart")
+
+local killAuraEnabled = false
+local godmodeEnabled = false
+local killRadius = 50 -- Distance to auto-kill (studs)
+local useFling = true -- Fling targets for extra effect
+local killDelay = 0.2 -- Delay between kills for stealth (seconds)
+local lastKillTime = 0
+local killCount = 0
+local commandEnabled = true -- Enable chat command like /kill [name]
+
+-- Create mobile-friendly GUI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "c00lgui_Kill"
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 180, 0, 180)
+mainFrame.Position = UDim2.new(0.5, -90, 0.1, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+mainFrame.BorderColor3 = Color3.fromRGB(255, 0, 0)
+mainFrame.BorderSizePixel = 2
+mainFrame.Parent = screenGui
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, 0, 0, 25)
+titleLabel.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.Text = "c00lgui ENHANCED KILL AURA"
+titleLabel.Font = Enum.Font.Arcade
+titleLabel.TextSize = 14
+titleLabel.Parent = mainFrame
+
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = UDim2.new(0, 130, 0, 30)
+toggleButton.Position = UDim2.new(0, 25, 0, 30)
+toggleButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleButton.Text = "TOGGLE KILL"
+toggleButton.Font = Enum.Font.Arcade
+toggleButton.TextSize = 14
+toggleButton.Parent = mainFrame
+
+local godButton = Instance.new("TextButton")
+godButton.Size = UDim2.new(0, 130, 0, 30)
+godButton.Position = UDim2.new(0, 25, 0, 65)
+godButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+godButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+godButton.Text = "TOGGLE GODMODE"
+godButton.Font = Enum.Font.Arcade
+godButton.TextSize = 14
+godButton.Parent = mainFrame
+
+local radiusBox = Instance.new("TextBox")
+radiusBox.Size = UDim2.new(0, 50, 0, 25)
+radiusBox.Position = UDim2.new(0, 10, 0, 105)
+radiusBox.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+radiusBox.TextColor3 = Color3.fromRGB(0, 0, 0)
+radiusBox.Text = tostring(killRadius)
+radiusBox.Font = Enum.Font.Arcade
+radiusBox.TextSize = 12
+radiusBox.Parent = mainFrame
+
+local radiusLabel = Instance.new("TextLabel")
+radiusLabel.Size = UDim2.new(0, 60, 0, 25)
+radiusLabel.Position = UDim2.new(0, 65, 0, 105)
+radiusLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+radiusLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
+radiusLabel.Text = "RADIUS:"
+radiusLabel.Font = Enum.Font.Arcade
+radiusLabel.TextSize = 12
+radiusLabel.Parent = mainFrame
+
+local delayBox = Instance.new("TextBox")
+delayBox.Size = UDim2.new(0, 50, 0, 25)
+delayBox.Position = UDim2.new(0, 10, 0, 135)
+delayBox.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+delayBox.TextColor3 = Color3.fromRGB(0, 0, 0)
+delayBox.Text = tostring(killDelay)
+delayBox.Font = Enum.Font.Arcade
+delayBox.TextSize = 12
+delayBox.Parent = mainFrame
+
+local delayLabel = Instance.new("TextLabel")
+delayLabel.Size = UDim2.new(0, 60, 0, 25)
+delayLabel.Position = UDim2.new(0, 65, 0, 135)
+delayLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+delayLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
+delayLabel.Text = "DELAY:"
+delayLabel.Font = Enum.Font.Arcade
+delayLabel.TextSize = 12
+delayLabel.Parent = mainFrame
+
+local killCounter = Instance.new("TextLabel")
+killCounter.Size = UDim2.new(1, 0, 0, 20)
+killCounter.Position = UDim2.new(0, 0, 0, 160)
+killCounter.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+killCounter.TextColor3 = Color3.fromRGB(0, 255, 0)
+killCounter.Text = "Kills: 0"
+killCounter.Font = Enum.Font.Arcade
+killCounter.TextSize = 12
+killCounter.Parent = mainFrame
+
+-- Update radius and delay from textboxes
+radiusBox:GetPropertyChangedSignal("Text"):Connect(function()
+    local newRadius = tonumber(radiusBox.Text)
+    if newRadius and newRadius > 0 then killRadius = newRadius end
+end)
+
+delayBox:GetPropertyChangedSignal("Text"):Connect(function()
+    local newDelay = tonumber(delayBox.Text)
+    if newDelay and newDelay >= 0 then killDelay = newDelay end
+end)
+
+-- Toggle kill aura
+toggleButton.Activated:Connect(function()
+    killAuraEnabled = not killAuraEnabled
+    toggleButton.Text = killAuraEnabled and "STOP KILL" or "TOGGLE KILL"
+    toggleButton.BackgroundColor3 = killAuraEnabled and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+end)
+
+-- Toggle godmode (for self-protection)
+godButton.Activated:Connect(function()
+    godmodeEnabled = not godmodeEnabled
+    if godmodeEnabled and character and character:FindFirstChild("Humanoid") then
+        character.Humanoid.Health = character.Humanoid.MaxHealth
+        godButton.Text = "DISABLE GODMODE"
+        godButton.BackgroundColor3 = Color3.fromRGB(255, 255, 0)
+    else
+        godButton.Text = "TOGGLE GODMODE"
+        godButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+    end
+end)
+
+-- Function to kill a target (now supports NPCs)
+local function killTarget(targetCharacter)
+    if not targetCharacter or not targetCharacter:FindFirstChild("Humanoid") or not targetCharacter:FindFirstChild("HumanoidRootPart") then
+        return false
+    end
+    local targetHumanoid = targetCharacter.Humanoid
+    local targetRoot = targetCharacter.HumanoidRootPart
+    local targetPlayer = Players:GetPlayerFromCharacter(targetCharacter)
+    
+    -- Skip self
+    if targetPlayer == player then return false end
+    
+    -- Set health to 0
+    targetHumanoid.Health = 0
+    killCount = killCount + 1
+    killCounter.Text = "Kills: " .. killCount
+    
+    -- Notify
+    StarterGui:SetCore("ChatMakeSystemMessage", {
+        Text = "Killed target (Player/NPC)";
+        Color = Color3.fromRGB(255, 0, 0);
+        Font = Enum.Font.SourceSansBold;
+        FontSize = Enum.FontSize.Size18;
+    })
+    
+    -- Optional fling
+    if useFling and targetRoot then
+        local bodyVelocity = Instance.new("BodyVelocity")
+        bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+        bodyVelocity.Velocity = Vector3.new(math.random(-200, 200), math.random(100, 300), math.random(-200, 200))
+        bodyVelocity.Parent = targetRoot
+        Debris:AddItem(bodyVelocity, 0.3) -- Shorter duration for stealth
+    end
+    return true
+end
+
+-- Enhanced kill aura loop (with delay and NPC support)
+RunService.Heartbeat:Connect(function()
+    if not killAuraEnabled then return end
+    local currentTime = tick()
+    if currentTime - lastKillTime < killDelay then return end
+    
+    for _, obj in pairs(workspace:GetChildren()) do
+        if obj:FindFirstChild("Humanoid") and obj:FindFirstChild("HumanoidRootPart") and obj ~= character then
+            local humanoid = obj.Humanoid
+            local objRoot = obj.HumanoidRootPart
+            local distance = (rootPart.Position - objRoot.Position).Magnitude
+            if distance <= killRadius and humanoid.Health > 0 then
+                if killTarget(obj) then
+                    lastKillTime = currentTime
+                end
+            end
+        end
+    end
+end)
+
+-- Godmode loop (maintain health)
+if godmodeEnabled then
+    RunService.Heartbeat:Connect(function()
+        if godmodeEnabled and character and character:FindFirstChild("Humanoid") then
+            character.Humanoid.Health = character.Humanoid.MaxHealth
+        end
+    end)
+end
+
+-- Chat command: /kill [playername] or /killall for all visible
+if commandEnabled then
+    player.Chatted:Connect(function(message)
+        local args = message:split(" ")
+        if args[1]:lower() == "/kill" and args[2] then
+            local targetName = args[2]
+            local targetPlayer = Players:FindFirstChild(targetName)
+            if targetPlayer and targetPlayer.Character then
+                killTarget(targetPlayer.Character)
+            else
+                StarterGui:SetCore("ChatMakeSystemMessage", {Text = "Target not found"; Color = Color3.fromRGB(255, 255, 0)})
+            end
+        elseif args[1]:lower() == "/killall" then
+            for _, otherPlayer in pairs(Players:GetPlayers()) do
+                if otherPlayer ~= player and otherPlayer.Character then
+                    killTarget(otherPlayer.Character)
+                end
+            end
+        end
+    end)
+end
+
+-- Hotkey toggle (Shift for quick access)
+UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
+    if not gameProcessedEvent and input.KeyCode == Enum.KeyCode.LeftShift or input.KeyCode == Enum.KeyCode.RightShift then
+        killAuraEnabled = not killAuraEnabled
+        toggleButton.Text = killAuraEnabled and "STOP KILL" or "TOGGLE KILL"
+        toggleButton.BackgroundColor3 = killAuraEnabled and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+    end
+end)
+
+-- Handle respawn (full sync)
+player.CharacterAdded:Connect(function(newCharacter)
+    character = newCharacter
+    rootPart = character:WaitForChild("HumanoidRootPart")
+    if godmodeEnabled then
+        character:WaitForChild("Humanoid").Health = character.Humanoid.MaxHealth
+    end
+    -- Reset counter on respawn if desired
+    -- killCount = 0
+    -- killCounter.Text = "Kills: 0"
+end)
