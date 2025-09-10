@@ -1,0 +1,30 @@
+-- Server Script (in ServerScriptService)
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+
+-- Create a RemoteEvent
+local killEvent = Instance.new("RemoteEvent")
+killEvent.Name = "KillPlayer"
+killEvent.Parent = ReplicatedStorage
+
+-- Admin UserIDs
+local adminUserIds = {123456789} -- Replace with your UserID
+
+local function isAdmin(player)
+    for _, userId in pairs(adminUserIds) do
+        if player.UserId == userId then
+            return true
+        end
+    end
+    return false
+end
+
+-- Handle RemoteEvent
+killEvent.OnServerEvent:Connect(function(caller, targetPlayer)
+    if isAdmin(caller) and targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("Humanoid") then
+        targetPlayer.Character.Humanoid.Health = 0
+        print(caller.Name .. " killed " .. targetPlayer.Name)
+    else
+        warn("Unauthorized or invalid kill attempt by " .. caller.Name)
+    end
+end)
